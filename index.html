@@ -126,7 +126,7 @@ body{font-family:'맑은 고딕','Malgun Gothic',sans-serif;background:var(--clo
 <body>
 
 <!-- ── FIREBASE CONFIG OVERLAY ── -->
-<div id="configOverlay">
+<div id="configOverlay" style="display:none">
   <div id="configBox">
     <h2>Firebase 연결 설정</h2>
     <p>Firebase 프로젝트의 설정값을 입력하세요.<br>한 번 입력하면 브라우저에 저장돼요.</p>
@@ -139,7 +139,7 @@ body{font-family:'맑은 고딕','Malgun Gothic',sans-serif;background:var(--clo
 </div>
 
 <!-- ── MAIN APP ── -->
-<div id="app">
+<div id="app" style="display:block">
   <div class="top-bar">
     <div>
       <div class="top-title">-(으)ㄴ 적이 있다 / 없다</div>
@@ -460,12 +460,11 @@ function resetData(){
 }
 
 /* ── BOOT ── */
-if(location.search.includes('reset')) localStorage.removeItem('fb_cfg');
-const saved=localStorage.getItem('fb_cfg');
-if(saved){
-  try{ initApp(JSON.parse(saved)); }
-  catch(e){ localStorage.removeItem('fb_cfg'); }
-}
+initApp({
+  k: "AIzaSyDLlvQu0HHYAXLzZGHNTdh7MiYnzku29FU",
+  p: "korean-class-2026",
+  d: "https://korean-class-2026-default-rtdb.asia-southeast1.firebasedatabase.app"
+});
 renderQuestions();
 renderTeacher();
 </script>
