@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>-(으)ㄴ 적이 있다/없다 활동지</title>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#1A1A1A;--muted:#636363;--border:#E0E0E0;
+  --canvas:#FFFFFF;--cloud:#F7F7F7;--primary:#024AD8;
+  --green:#1D9E75;--red:#E24B4A;--amber:#EF9F27;
+  --radius:10px;--shadow:0 1px 3px rgba(0,0,0,.08);
+}
+body{font-family:'맑은 고딕','Malgun Gothic',sans-serif;background:var(--cloud);color:var(--ink);min-height:100vh}
+
+/* ── CONFIG OVERLAY ── */
+#configOverlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:999;padding:1rem}
+#configBox{background:var(--canvas);border-radius:var(--radius);padding:2rem;width:100%;max-width:460px;box-shadow:0 8px 32px rgba(0,0,0,.15)}
+#configBox h2{font-size:17px;font-weight:500;margin-bottom:6px}
+#configBox p{font-size:13px;color:var(--muted);margin-bottom:1.5rem;line-height:1.6}
+.cfg-field{margin-bottom:14px}
+.cfg-field label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px;letter-spacing:.04em;text-transform:uppercase}
+.cfg-field input{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);font-size:13px;font-family:monospace;color:var(--ink)}
+.cfg-field input:focus{outline:none;border-color:var(--primary)}
+.cfg-btn{width:100%;padding:11px;border-radius:8px;background:var(--primary);color:#fff;border:none;font-size:14px;font-weight:500;cursor:pointer;margin-top:6px}
+.cfg-note{font-size:11px;color:var(--muted);margin-top:12px;text-align:center;line-height:1.6}
+
+/* ── APP SHELL ── */
+#app{display:none;min-height:100vh}
+.top-bar{background:var(--canvas);border-bottom:1px solid var(--border);padding:12px 1rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.top-title{font-size:14px;font-weight:500}
+.top-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.top-right{display:flex;align-items:center;gap:8px}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.tab-row{display:flex;border-bottom:1px solid var(--border);background:var(--canvas);padding:0 1rem}
+.tab{padding:10px 14px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);background:none;border-top:none;border-left:none;border-right:none}
+.tab.on{color:var(--primary);border-bottom-color:var(--primary)}
+.page{display:none;padding:1rem;max-width:640px;margin:0 auto}
+.page.on{display:block}
+
+/* ── STUDENT PAGE ── */
+.stu-pick{background:var(--canvas);border-radius:var(--radius);padding:1rem;margin-bottom:1rem;border:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.stu-pick label{font-size:13px;color:var(--muted)}
+.stu-pick select{flex:1;min-width:160px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:13px;font-family:inherit;color:var(--ink);background:var(--canvas)}
+.stu-badge{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500}
+
+.q-card{background:var(--canvas);border-radius:var(--radius);border:1px solid var(--border);padding:1rem 1.25rem;margin-bottom:10px}
+.q-meta{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.q-num{font-size:11px;font-weight:500;color:var(--muted)}
+.rule-pill{font-size:11px;padding:2px 9px;border-radius:20px;background:#E6F1FB;color:#185FA5;font-weight:500}
+.q-line{font-size:14px;line-height:2;color:var(--ink);margin-bottom:6px}
+.blank-line{border-bottom:1.5px solid #BDBDBD;display:inline-block;min-width:70px;vertical-align:bottom;margin:0 2px}
+.ans-row{display:flex;align-items:center;gap:8px;margin-top:6px}
+.ans-label{font-size:12px;color:var(--muted);min-width:80px;flex-shrink:0}
+.ans-input{flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:13px;font-family:inherit;color:var(--ink);background:var(--canvas);transition:border-color .15s,background .15s}
+.ans-input:focus{outline:none;border-color:var(--primary)}
+.ans-input.ok{border-color:var(--green);background:#F0FFF8}
+.ans-input.ng{border-color:var(--red);background:#FFF5F5}
+.fb{font-size:12px;margin-top:8px;padding:8px 12px;border-radius:8px;display:none;line-height:1.7}
+.fb.ok{display:block;background:#E8F5E9;color:#1B5E20}
+.fb.ng{display:block;background:#FEECEC;color:#7B1111}
+
+.submit-wrap{margin-top:4px}
+.submit-btn{width:100%;padding:12px;border-radius:var(--radius);background:var(--primary);color:#fff;border:none;font-size:14px;font-weight:500;cursor:pointer;transition:opacity .15s}
+.submit-btn:hover{opacity:.88}
+.submit-btn:disabled{opacity:.38;cursor:not-allowed}
+
+.result-card{background:var(--canvas);border-radius:var(--radius);border:1px solid var(--border);padding:1.5rem;text-align:center;margin-top:1rem;display:none}
+.score-big{font-size:48px;font-weight:500;color:var(--ink)}
+.score-sub{font-size:13px;color:var(--muted);margin-top:4px}
+.score-msg{font-size:14px;margin-top:12px;color:var(--ink)}
+
+/* ── TEACHER PAGE ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:1rem}
+.stat-c{background:var(--canvas);border-radius:var(--radius);border:1px solid var(--border);padding:1rem;text-align:center}
+.stat-n{font-size:28px;font-weight:500;color:var(--ink)}
+.stat-l{font-size:11px;color:var(--muted);margin-top:2px}
+
+.stu-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:1rem}
+.stu-card{background:var(--canvas);border-radius:var(--radius);border:1px solid var(--border);padding:12px;display:flex;align-items:center;gap:10px}
+.stu-av{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;flex-shrink:0}
+.stu-n{font-size:13px;font-weight:500;color:var(--ink)}
+.stu-nat{font-size:11px;color:var(--muted)}
+.stu-sc{font-size:12px;margin-top:2px;font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;margin-left:auto;flex-shrink:0}
+.dot-w{background:#D3D1C7}.dot-s{background:var(--green)}
+
+.section-hd{font-size:13px;font-weight:500;color:var(--ink);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.q-analysis-card{background:var(--canvas);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;margin-bottom:1rem}
+.qa-head{padding:10px 1rem;background:var(--cloud);font-size:12px;font-weight:500;color:var(--muted);border-bottom:1px solid var(--border)}
+.qa-row{display:flex;align-items:center;gap:10px;padding:10px 1rem;border-bottom:1px solid var(--border)}
+.qa-row:last-child{border-bottom:none}
+.qa-num{font-size:12px;color:var(--muted);min-width:18px}
+.qa-verb{font-size:13px;color:var(--ink);flex:1;display:flex;align-items:center;gap:6px}
+.qa-bar{flex:1;height:6px;background:var(--cloud);border-radius:3px;overflow:hidden;min-width:60px}
+.qa-fill{height:100%;border-radius:3px;transition:width .5s}
+.qa-pct{font-size:12px;color:var(--muted);min-width:28px;text-align:right}
+
+.answers-table{background:var(--canvas);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;margin-bottom:1rem}
+.ans-table-head{display:grid;grid-template-columns:80px 1fr 1fr 50px;padding:8px 1rem;background:var(--cloud);font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.04em;border-bottom:1px solid var(--border)}
+.ans-table-row{display:grid;grid-template-columns:80px 1fr 1fr 50px;padding:9px 1rem;border-bottom:1px solid var(--border);font-size:12px;align-items:center}
+.ans-table-row:last-child{border-bottom:none}
+.ans-table-row.ng-row{background:#FEECEC08}
+.score-badge{padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.score-ok{background:#E8F5E9;color:#1B5E20}
+.score-ng{background:#FEECEC;color:#7B1111}
+
+.reset-btn{padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:none;font-size:12px;color:var(--muted);cursor:pointer}
+.reset-btn:hover{background:var(--cloud)}
+
+/* ── MOBILE ── */
+@media(max-width:480px){
+  .stat-n{font-size:22px}
+  .ans-table-head,.ans-table-row{grid-template-columns:70px 1fr 50px;font-size:11px}
+  .ans-table-head span:nth-child(3),.ans-table-row span:nth-child(3){display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ── FIREBASE CONFIG OVERLAY ── -->
+<div id="configOverlay">
+  <div id="configBox">
+    <h2>Firebase 연결 설정</h2>
+    <p>Firebase 프로젝트의 설정값을 입력하세요.<br>한 번 입력하면 브라우저에 저장돼요.</p>
+    <div class="cfg-field"><label>API Key</label><input id="cfgKey" placeholder="AIzaSy..."></div>
+    <div class="cfg-field"><label>Project ID</label><input id="cfgProject" placeholder="my-korean-class"></div>
+    <div class="cfg-field"><label>Database URL</label><input id="cfgDb" placeholder="https://my-korean-class-default-rtdb.firebaseio.com"></div>
+    <button class="cfg-btn" onclick="saveConfig()">연결 시작</button>
+    <p class="cfg-note">설정값은 이 기기의 localStorage에만 저장됩니다.<br>설정을 바꾸려면 주소창에 <code>?reset</code>을 붙여 접속하세요.</p>
+  </div>
+</div>
+
+<!-- ── MAIN APP ── -->
+<div id="app">
+  <div class="top-bar">
+    <div>
+      <div class="top-title">-(으)ㄴ 적이 있다 / 없다</div>
+      <div class="top-sub">빈칸 채우기 활동지</div>
+    </div>
+    <div class="top-right">
+      <span class="live-dot" id="liveDot" style="display:none"></span>
+      <span id="connLabel" style="font-size:11px;color:var(--muted)">연결 중...</span>
+    </div>
+  </div>
+
+  <div class="tab-row">
+    <button class="tab on" onclick="switchTab('student',this)" id="tabS">학생 화면</button>
+    <button class="tab" onclick="switchTab('teacher',this)" id="tabT">교사 대시보드</button>
+  </div>
+
+  <!-- ── STUDENT PAGE ── -->
+  <div class="page on" id="pgStudent">
+    <div class="stu-pick">
+      <label>내 이름:</label>
+      <select id="stuSel" onchange="onStuChange()">
+        <option value="">-- 선택하세요 --</option>
+        <option value="치디">치디 🇳🇬</option>
+        <option value="나라">나라 🇹🇭</option>
+        <option value="엘리">엘리 🇹🇷</option>
+        <option value="무사">무사 🇲🇱</option>
+        <option value="린린">린린 🇻🇳</option>
+      </select>
+      <span id="stuBadge" class="stu-badge" style="display:none"></span>
+    </div>
+
+    <div id="qWrap"></div>
+
+    <div class="submit-wrap">
+      <button class="submit-btn" id="submitBtn" disabled onclick="doSubmit()">제출하기</button>
+    </div>
+
+    <div class="result-card" id="resultCard">
+      <div class="score-big" id="scoreNum"></div>
+      <div class="score-sub">정답 / 4문항</div>
+      <div class="score-msg" id="scoreMsg"></div>
+    </div>
+  </div>
+
+  <!-- ── TEACHER PAGE ── -->
+  <div class="page" id="pgTeacher">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+      <span style="font-size:15px;font-weight:500">실시간 제출 현황</span>
+      <button class="reset-btn" onclick="resetData()">초기화</button>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-c"><div class="stat-n" id="tSub">0</div><div class="stat-l">제출 완료</div></div>
+      <div class="stat-c"><div class="stat-n" id="tWait">5</div><div class="stat-l">대기 중</div></div>
+      <div class="stat-c"><div class="stat-n" id="tAvg">—</div><div class="stat-l">평균 점수</div></div>
+      <div class="stat-c"><div class="stat-n" id="tPerfect">0</div><div class="stat-l">만점</div></div>
+    </div>
+
+    <div class="section-hd">학생별 현황</div>
+    <div class="stu-grid" id="stuGrid"></div>
+
+    <div class="section-hd" style="margin-top:.5rem">문항별 정답률</div>
+    <div class="q-analysis-card">
+      <div class="qa-head">동사 · 규칙 · 정답률</div>
+      <div id="qaWrap"></div>
+    </div>
+
+    <div class="section-hd" style="margin-top:.5rem">제출 답안 상세</div>
+    <div class="answers-table">
+      <div class="ans-table-head">
+        <span>학생</span><span>문항별 답안</span><span>규칙</span><span>점수</span>
+      </div>
+      <div id="ansDetail"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const QUESTIONS=[
+  {n:1,verb:"입다",rule:"받침 O → -은",
+   qa:"가: 한복을 _____ 봤어요?",qb:"나: 아니요, 한복을 _____.",
+   a1:"입어",a2:"입은 적이 없어요",
+   hint:"'입다' 받침 O → 어간 '입' + 은 → 입은 적이 없어요"},
+  {n:2,verb:"가다",rule:"받침 X → -ㄴ",
+   qa:"가: 한국에 _____ 봤어요?",qb:"나: 네, 한국에 _____.",
+   a1:"가",a2:"간 적이 있어요",
+   hint:"'가다' 받침 X → 어간 '가' + ㄴ → 간 적이 있어요"},
+  {n:3,verb:"먹다",rule:"받침 O → -은",
+   qa:"가: 떡볶이를 _____ 봤어요?",qb:"나: 아니요, 떡볶이를 _____.",
+   a1:"먹어",a2:"먹은 적이 없어요",
+   hint:"'먹다' 받침 O → 어간 '먹' + 은 → 먹은 적이 없어요"},
+  {n:4,verb:"부르다",rule:"받침 X → -ㄴ",
+   qa:"가: 한국어로 노래를 _____ 봤어요?",qb:"나: 네, 한국어로 노래를 _____.",
+   a1:"불러",a2:"부른 적이 있어요",
+   hint:"'부르다' 받침 X → '부르' + ㄴ → 부른 적이 있어요"},
+];
+
+const STUDENTS=[
+  {name:"치디",nat:"나이지리아",color:"#E65100",bg:"#FFF3E0"},
+  {name:"나라",nat:"태국",color:"#1B5E20",bg:"#E8F5E9"},
+  {name:"엘리",nat:"튀르키예",color:"#0D47A1",bg:"#E3F2FD"},
+  {name:"무사",nat:"말리",color:"#880E4F",bg:"#FCE4EC"},
+  {name:"린린",nat:"베트남",color:"#4527A0",bg:"#EDE7F6"},
+];
+
+const MSGS=["조금 더 연습해 봐요!","잘하고 있어요!","아주 잘했어요!","완벽해요! 만점!"];
+let db=null, submissions={};
+
+/* ── CONFIG ── */
+function saveConfig(){
+  const k=document.getElementById('cfgKey').value.trim();
+  const p=document.getElementById('cfgProject').value.trim();
+  const d=document.getElementById('cfgDb').value.trim();
+  if(!k||!p||!d){alert('모든 항목을 입력해 주세요.');return;}
+  localStorage.setItem('fb_cfg',JSON.stringify({k,p,d}));
+  initApp({k,p,d});
+}
+
+function initApp(cfg){
+  document.getElementById('configOverlay').style.display='none';
+  document.getElementById('app').style.display='block';
+  try{
+    const app=firebase.initializeApp({
+      apiKey:cfg.k,
+      databaseURL:cfg.d,
+      projectId:cfg.p,
+    });
+    db=firebase.database(app);
+    document.getElementById('connLabel').textContent='연결됨';
+    document.getElementById('liveDot').style.display='inline-block';
+    listenSubmissions();
+  }catch(e){
+    document.getElementById('connLabel').textContent='연결 오류';
+    console.error(e);
+  }
+}
+
+/* ── FIREBASE LISTENER ── */
+function listenSubmissions(){
+  const SESSION=getSession();
+  db.ref('sessions/'+SESSION+'/submissions').on('value',snap=>{
+    submissions=snap.val()||{};
+    renderTeacher();
+  });
+}
+
+function getSession(){
+  const d=new Date();
+  return d.getFullYear()+''+(d.getMonth()+1)+''+d.getDate();
+}
+
+/* ── TAB ── */
+function switchTab(id,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('pg'+id.charAt(0).toUpperCase()+id.slice(1)).classList.add('on');
+  if(id==='teacher') renderTeacher();
+}
+
+/* ── STUDENT ── */
+function onStuChange(){
+  const v=document.getElementById('stuSel').value;
+  const badge=document.getElementById('stuBadge');
+  const btn=document.getElementById('submitBtn');
+  if(!v){badge.style.display='none';btn.disabled=true;renderQuestions();return;}
+  const s=STUDENTS.find(x=>x.name===v);
+  badge.style.display='inline-block';
+  badge.style.background=s.bg;badge.style.color=s.color;
+  badge.textContent=s.name+' ('+s.nat+')';
+  btn.disabled=false;
+  renderQuestions();
+  document.getElementById('resultCard').style.display='none';
+}
+
+function renderQuestions(){
+  document.getElementById('qWrap').innerHTML=QUESTIONS.map(q=>`
+    <div class="q-card" id="qc${q.n}">
+      <div class="q-meta">
+        <span class="q-num">문항 ${q.n}</span>
+        <span class="rule-pill">${q.rule}</span>
+        <span style="font-size:12px;color:var(--muted)">동사: <b>${q.verb}</b></span>
+      </div>
+      <div class="q-line">${q.qa.replace('_____','<span class="blank-line"></span>')}</div>
+      <div class="ans-row">
+        <span class="ans-label">가 빈칸:</span>
+        <input class="ans-input" id="a1${q.n}" type="text" placeholder="${q.verb} 활용형...">
+      </div>
+      <div class="q-line" style="margin-top:10px">${q.qb.replace('_____','<span class="blank-line"></span>')}</div>
+      <div class="ans-row">
+        <span class="ans-label">나 빈칸:</span>
+        <input class="ans-input" id="a2${q.n}" type="text" placeholder="-(으)ㄴ 적이...">
+      </div>
+      <div id="fb${q.n}" class="fb"></div>
+    </div>
+  `).join('');
+}
+
+function norm(s){return s.trim().replace(/\s+/g,' ').replace(/요\s*\.$/,'요');}
+function chk(u,c){
+  const un=norm(u),cn=norm(c);
+  if(un===cn) return true;
+  const strip=s=>s.replace(/[^\uAC00-\uD7A3]/g,'');
+  return strip(un)===strip(cn);
+}
+
+function doSubmit(){
+  const name=document.getElementById('stuSel').value;
+  if(!name) return;
+  let correct=0;
+  const answers=[];
+  QUESTIONS.forEach(q=>{
+    const v1=document.getElementById('a1'+q.n).value;
+    const v2=document.getElementById('a2'+q.n).value;
+    const c1=chk(v1,q.a1),c2=chk(v2,q.a2),ok=c1&&c2;
+    if(ok) correct++;
+    answers.push({q:q.n,v1,v2,ok,c1,c2});
+    const i1=document.getElementById('a1'+q.n);
+    const i2=document.getElementById('a2'+q.n);
+    i1.className='ans-input '+(c1?'ok':'ng');
+    i2.className='ans-input '+(c2?'ok':'ng');
+    i1.readOnly=true;i2.readOnly=true;
+    const fb=document.getElementById('fb'+q.n);
+    if(ok){
+      fb.className='fb ok';
+      fb.innerHTML='✓ 정답이에요!';
+    } else {
+      fb.className='fb ng';
+      fb.innerHTML='✗ <b>정답:</b> '+q.a1+' / '+q.a2+'<br><span style="font-size:11px;opacity:.85">'+q.hint+'</span>';
+    }
+  });
+  const resultCard=document.getElementById('resultCard');
+  resultCard.style.display='block';
+  document.getElementById('scoreNum').textContent=correct+' / 4';
+  document.getElementById('scoreMsg').textContent=MSGS[correct]||'';
+  document.getElementById('submitBtn').disabled=true;
+  if(db){
+    const SESSION=getSession();
+    db.ref('sessions/'+SESSION+'/submissions/'+name).set({
+      name,correct,total:4,answers,
+      time:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),
+      ts:Date.now()
+    });
+  }
+}
+
+/* ── TEACHER ── */
+function renderTeacher(){
+  const subs=Object.values(submissions);
+  document.getElementById('tSub').textContent=subs.length;
+  document.getElementById('tWait').textContent=Math.max(0,5-subs.length);
+  if(subs.length>0){
+    const avg=(subs.reduce((a,s)=>a+s.correct,0)/subs.length).toFixed(1);
+    document.getElementById('tAvg').textContent=avg;
+    document.getElementById('tPerfect').textContent=subs.filter(s=>s.correct===4).length;
+  } else {
+    document.getElementById('tAvg').textContent='—';
+    document.getElementById('tPerfect').textContent='0';
+  }
+  const grid=document.getElementById('stuGrid');
+  grid.innerHTML=STUDENTS.map(s=>{
+    const sub=submissions[s.name];
+    return`<div class="stu-card">
+      <div class="stu-av" style="background:${s.bg};color:${s.color}">${s.name[0]}</div>
+      <div style="flex:1;min-width:0">
+        <div class="stu-n">${s.name}</div>
+        <div class="stu-nat">${s.nat}</div>
+        ${sub
+          ?`<div class="stu-sc" style="color:${s.color}">${sub.correct}/4점 · ${sub.time}</div>`
+          :`<div class="stu-sc" style="color:var(--muted)">대기 중</div>`
+        }
+      </div>
+      <div class="dot ${sub?'dot-s':'dot-w'}"></div>
+    </div>`;
+  }).join('');
+
+  const qaWrap=document.getElementById('qaWrap');
+  qaWrap.innerHTML=QUESTIONS.map((q,i)=>{
+    const ok=subs.filter(s=>s.answers&&s.answers[i]&&s.answers[i].ok).length;
+    const pct=subs.length?Math.round(ok/subs.length*100):0;
+    const col=pct>=70?'#1D9E75':pct>=40?'#EF9F27':'#E24B4A';
+    return`<div class="qa-row">
+      <div class="qa-num">${q.n}</div>
+      <div class="qa-verb">${q.verb}<span class="rule-pill" style="font-size:10px">${q.rule}</span></div>
+      <div class="qa-bar"><div class="qa-fill" style="width:${pct}%;background:${col}"></div></div>
+      <div class="qa-pct">${subs.length?pct+'%':'—'}</div>
+    </div>`;
+  }).join('');
+
+  const detail=document.getElementById('ansDetail');
+  if(subs.length===0){
+    detail.innerHTML='<div style="padding:1rem;font-size:13px;color:var(--muted);text-align:center">아직 제출한 학생이 없어요</div>';
+    return;
+  }
+  detail.innerHTML=subs.sort((a,b)=>a.ts-b.ts).map(s=>{
+    const ok=s.correct===4;
+    return`<div class="ans-table-row ${ok?'':'ng-row'}">
+      <span style="font-weight:500;font-size:13px">${s.name}</span>
+      <span style="font-size:11px;color:var(--muted);line-height:1.8">
+        ${(s.answers||[]).map((a,i)=>`<span style="color:${a.ok?'#1D9E75':'#E24B4A'}">${QUESTIONS[i].verb}: ${a.v2||'—'}</span>`).join('<br>')}
+      </span>
+      <span style="font-size:11px;color:var(--muted)">
+        ${(s.answers||[]).map(a=>`<span style="color:${a.ok?'#1D9E75':'#E24B4A'}">${a.ok?'O':'X'}</span>`).join(' ')}
+      </span>
+      <span><span class="score-badge ${s.correct===4?'score-ok':'score-ng'}">${s.correct}/4</span></span>
+    </div>`;
+  }).join('');
+}
+
+function resetData(){
+  if(!confirm('세션 데이터를 초기화할까요?\n학생들의 제출 내역이 모두 삭제됩니다.')) return;
+  if(db){
+    const SESSION=getSession();
+    db.ref('sessions/'+SESSION).remove();
+  }
+  submissions={};
+  renderTeacher();
+}
+
+/* ── BOOT ── */
+if(location.search.includes('reset')) localStorage.removeItem('fb_cfg');
+const saved=localStorage.getItem('fb_cfg');
+if(saved){
+  try{ initApp(JSON.parse(saved)); }
+  catch(e){ localStorage.removeItem('fb_cfg'); }
+}
+renderQuestions();
+renderTeacher();
+</script>
+</body>
+</html>
